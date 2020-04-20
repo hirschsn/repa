@@ -43,6 +43,7 @@ define_test(NAME test_all_cells_assigned SRC test_all_cells_assigned.cpp LIBRARI
 define_test(NAME test_all_ghost_cells_valid SRC test_all_ghost_cells_valid.cpp LIBRARIES testenv)
 define_test(NAME test_ghost_exchange_volume SRC test_ghost_exchange_volume.cpp LIBRARIES testenv)
 define_test(NAME test_pos_rank_agreement SRC test_pos_rank_agreement.cpp LIBRARIES testenv)
+define_test(NAME test_load_reduction SRC test_load_reduction.cpp LIBRARIES testenv)
 
 # ghost_exchange_volume_ext requires debug build (NDEBUG *not* set).
 if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")

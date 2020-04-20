@@ -32,9 +32,16 @@ struct TEnv {
         = std::function<void(const TEnv &, repa::grids::ParallelLCGrid *)>;
     using Test_Func_With_GridType = std::function<void(
         const TEnv &, repa::grids::ParallelLCGrid *, repa::GridType)>;
+    
+    // Function that returns a Test_Func. Useful for starting with a
+    // new state for each grid type.
+    using Test_Func_No_GridType_Returner
+        = std::function<Test_Func_No_GridType(void)>;
+    using Test_Func_With_GridType_Returner
+        = std::function<Test_Func_With_GridType(void)>;
 
     TEnv &with_repart();
-    TEnv &with_repart(MetricFunc f);
+    TEnv &with_metric(MetricFunc f);
     TEnv &with_repart_twice();
     TEnv &without_repart();
     TEnv &all_grids();
@@ -43,6 +50,11 @@ struct TEnv {
 
     void run(Test_Func_No_GridType test_func);
     void run(Test_Func_With_GridType test_func);
+    // Calls get_test_func() to get a fresh test_func for each grid type.
+    // Use these overloads if your test_func needs a separate state for
+    // each grid type. See, e.g., test_load_reduction.
+    void run(Test_Func_No_GridType_Returner get_test_func);
+    void run(Test_Func_With_GridType_Returner get_test_func);
 
     static testenv::TEnv default_test_env(repa::ExtraParams ep
                                           = repa::ExtraParams{});

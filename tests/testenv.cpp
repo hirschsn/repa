@@ -65,7 +65,7 @@ struct TEnv::TEnv_impl {
     TEnv_impl(repa::ExtraParams ep);
 
     void with_repart();
-    void with_repart(MetricFunc f);
+    void with_metric(MetricFunc f);
     void with_repart_twice();
     void without_repart();
     void all_grids();
@@ -74,8 +74,9 @@ struct TEnv::TEnv_impl {
 
     using TestFunc = std::function<void(repa::grids::ParallelLCGrid *grid,
                                         repa::GridType gt)>;
+    using TestFuncReturner = std::function<TestFunc(void)>;
 
-    void run(TestFunc test_func);
+    void run(TestFuncReturner get_test_func);
 };
 
 TEnv::TEnv_impl::TEnv_impl(const boost::mpi::communicator &comm,
@@ -109,7 +110,7 @@ void TEnv::TEnv_impl::with_repart()
     repart_twice = false;
 }
 
-void TEnv::TEnv_impl::with_repart(MetricFunc f)
+void TEnv::TEnv_impl::with_metric(MetricFunc f)
 {
     get_metric = f;
 }
@@ -147,12 +148,15 @@ void TEnv::TEnv_impl::exclude(std::set<repa::GridType> s)
         grids.erase(gt);
 }
 
-void TEnv::TEnv_impl::run(TestFunc test_func)
+void TEnv::TEnv_impl::run(TestFuncReturner get_test_func)
 {
     for (const auto gt : grids) {
         // Skip unavailable grids
         if (!repa::has_grid_type(gt))
             continue;
+
+        // Initialize a fresh test_func
+        auto test_func = get_test_func();
 
         // Test consistency of parsing and to_string.
         BOOST_TEST(
@@ -191,9 +195,9 @@ TEnv &TEnv::with_repart()
     return *this;
 }
 
-TEnv &TEnv::with_repart(MetricFunc f)
+TEnv &TEnv::with_metric(MetricFunc f)
 {
-    te_impl->with_repart(f);
+    te_impl->with_metric(f);
     return *this;
 }
 TEnv &TEnv::with_repart_twice()
@@ -224,13 +228,32 @@ TEnv &TEnv::exclude(std::set<repa::GridType> s)
 
 void TEnv::run(Test_Func_No_GridType test_func)
 {
-    te_impl->run(
-        [this, test_func](auto grid, auto) { test_func(*this, grid); });
+    run([test_func](){ return test_func; });
 }
+
 void TEnv::run(Test_Func_With_GridType test_func)
 {
-    te_impl->run(
-        [this, test_func](auto grid, auto gt) { test_func(*this, grid, gt); });
+    run([test_func](){ return test_func; });
+}
+
+void TEnv::run(Test_Func_No_GridType_Returner get_test_func)
+{
+    te_impl->run([this, get_test_func](){
+        auto test_func = get_test_func();
+        return [this, test_func](auto grid, auto) {
+            test_func(*this, grid);
+        };
+    });
+}
+
+void TEnv::run(Test_Func_With_GridType_Returner get_test_func)
+{
+    te_impl->run([this, get_test_func](){
+        auto test_func = get_test_func();
+        return [this, test_func](auto grid, auto gt) {
+            test_func(*this, grid, gt);
+        };
+    });
 }
 
 TEnv::TEnv(repa::ExtraParams ep) : te_impl(new TEnv_impl(ep))
